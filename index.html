@@ -77,6 +77,12 @@
             background: rgba(255, 255, 255, 0.1);
             color: white;
         }
+        .catatan-cell {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body class="min-h-screen p-4 md:p-8">
@@ -132,6 +138,7 @@
                         <th class="text-left p-4 text-white/40 text-xs uppercase tracking-widest font-medium">Alamat</th>
                         <th class="text-left p-4 text-white/40 text-xs uppercase tracking-widest font-medium">Status</th>
                         <th class="text-left p-4 text-white/40 text-xs uppercase tracking-widest font-medium">WA</th>
+                        <th class="text-left p-4 text-white/40 text-xs uppercase tracking-widest font-medium">Catatan</th>
                         <th class="text-left p-4 text-white/40 text-xs uppercase tracking-widest font-medium">Aksi</th>
                     </tr>
                 </thead>
@@ -167,7 +174,6 @@
         const formatDate = (str) => {
             if (!str || str === '-') return '-';
             try {
-                // Handle format MM/DD/YYYY
                 const parts = str.split('/');
                 if (parts.length === 3) {
                     const [month, day, year] = parts;
@@ -180,7 +186,6 @@
                         });
                     }
                 }
-                // Fallback
                 const date = new Date(str);
                 return isNaN(date) ? str : date.toLocaleDateString('id-ID');
             } catch {
@@ -244,7 +249,7 @@
             }
         }
 
-        // Render tabel
+        // Render tabel - DIPERBAIKI: Catatan di kolom terpisah
         function renderTable() {
             const body = document.getElementById('table-body');
             const filtered = currentFilter === 'all' 
@@ -261,7 +266,6 @@
             document.getElementById('empty-state').classList.add('hidden');
             
             body.innerHTML = filtered.map((item, idx) => {
-                // Cari index asli di allData untuk tombol forward
                 const originalIndex = allData.findIndex(d => 
                     d.tanggal === item.tanggal && 
                     d.nama === item.nama &&
@@ -271,16 +275,13 @@
                 return `
                     <tr class="table-row">
                         <td class="p-4 text-cell">${formatDate(item.tanggal)}</td>
-                        <td class="p-4">
-                            <div class="font-medium text-white/90">${item.nama}</div>
-                            ${item.catatan ? `<div class="text-muted mt-1">${item.catatan}</div>` : ''}
-                        </td>
+                        <td class="p-4 text-cell font-medium">${item.nama}</td>
                         <td class="p-4 text-cell">${item.produk}</td>
                         <td class="p-4">
                             <span class="inline-block px-3 py-1 rounded-lg brand-badge text-xs">${item.brand}</span>
                         </td>
                         <td class="p-4 text-cell font-medium">${item.jumlah}</td>
-                        <td class="p-4 text-cell max-w-xs">${item.alamat}</td>
+                        <td class="p-4 text-cell">${item.alamat}</td>
                         <td class="p-4">
                             <span class="status-badge ${getStatusClass(item.status)}">${item.status}</span>
                         </td>
@@ -290,6 +291,9 @@
                                class="text-cell hover:text-white transition-colors underline decoration-white/20">
                                 ${item.wa}
                             </a>
+                        </td>
+                        <td class="p-4 text-cell catatan-cell" title="${item.catatan}">
+                            ${item.catatan || '-'}
                         </td>
                         <td class="p-4">
                             <button onclick="forwardOrder(${originalIndex})" 
@@ -325,7 +329,7 @@
             return map[status] || 'status-pending';
         }
 
-        // Forward order ke grup WA - dengan fallback clipboard
+        // Forward order ke grup WA
         function forwardOrder(index) {
             if (index < 0 || index >= allData.length) {
                 console.error("Index tidak valid:", index);
@@ -363,10 +367,10 @@
                 if (successful) {
                     showCopySuccess(target);
                 } else {
-                    showCopyError(target, "Silakan copy manual");
+                    showCopyError(target);
                 }
             } catch (err) {
-                showCopyError(target, "Error: " + err.message);
+                showCopyError(target);
             } finally {
                 document.body.removeChild(textArea);
             }
@@ -387,7 +391,7 @@
             }, 1500);
         }
 
-        function showCopyError(button, message) {
+        function showCopyError(button) {
             const btn = button.closest('button');
             const originalHTML = btn.innerHTML;
             btn.innerHTML = `<i data-lucide="x" class="w-4 h-4"></i> Error`;
@@ -398,13 +402,6 @@
                 btn.classList.remove('bg-red-500/20', 'text-red-300');
                 lucide.createIcons();
             }, 1500);
-            
-            // Tampilkan alert untuk manual copy
-            setTimeout(() => {
-                if (confirm(`${message}\n\nTekan OK untuk melihat teks yang perlu disalin.`)) {
-                    prompt("Copy teks berikut:", `[PERAKIN] Order perlu dicek:\nCustomer: ${button.closest('tr').querySelector('td:nth-child(2) .font-medium').textContent}\nProduk: ${button.closest('tr').querySelector('td:nth-child(3)').textContent}\nStatus: ${button.closest('tr').querySelector('.status-badge').textContent}`);
-                }
-            }, 100);
         }
 
         // Update counters

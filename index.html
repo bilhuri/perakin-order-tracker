@@ -14,10 +14,13 @@
             --terkirim: #34d399;
             --selesai: #10b981;
             --problem: #ef4444;
+            --matte-black: #0a0a0a;
+            --matte-dark: #121212;
+            --silver-light: #c0c0c0;
         }
         body {
             font-family: 'Inter', sans-serif;
-            background: #0a0a0a;
+            background: var(--matte-black);
             color: #f0f0f0;
         }
         .status-badge {
@@ -33,14 +36,46 @@
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
-        .hover-glow:hover {
-            box-shadow: 0 0 20px rgba(192, 192, 192, 0.1);
-        }
         .silver-gradient {
             background: linear-gradient(135deg, #ffffff 0%, #c0c0c0 50%, #8e8e8e 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+        }
+        .table-row {
+            transition: all 0.2s ease;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+        .table-row:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .text-cell {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+        .text-muted {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.75rem;
+        }
+        .brand-badge {
+            background: rgba(192, 192, 192, 0.1);
+            color: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(192, 192, 192, 0.2);
+        }
+        .forward-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s ease;
+        }
+        .forward-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+        .filter-btn.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
         }
     </style>
 </head>
@@ -89,15 +124,15 @@
             <table class="w-full">
                 <thead>
                     <tr class="border-b border-white/5">
-                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">Tanggal</th>
-                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">Customer</th>
-                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">Produk</th>
-                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">Brand</th>
-                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">Jumlah</th>
-                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">Alamat</th>
-                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">Status</th>
-                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">WA</th>
-                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">Aksi</th>
+                        <th class="text-left p-4 text-white/40 text-xs uppercase tracking-widest font-medium">Tanggal</th>
+                        <th class="text-left p-4 text-white/40 text-xs uppercase tracking-widest font-medium">Customer</th>
+                        <th class="text-left p-4 text-white/40 text-xs uppercase tracking-widest font-medium">Produk</th>
+                        <th class="text-left p-4 text-white/40 text-xs uppercase tracking-widest font-medium">Brand</th>
+                        <th class="text-left p-4 text-white/40 text-xs uppercase tracking-widest font-medium">Jumlah</th>
+                        <th class="text-left p-4 text-white/40 text-xs uppercase tracking-widest font-medium">Alamat</th>
+                        <th class="text-left p-4 text-white/40 text-xs uppercase tracking-widest font-medium">Status</th>
+                        <th class="text-left p-4 text-white/40 text-xs uppercase tracking-widest font-medium">WA</th>
+                        <th class="text-left p-4 text-white/40 text-xs uppercase tracking-widest font-medium">Aksi</th>
                     </tr>
                 </thead>
                 <tbody id="table-body" class="divide-y divide-white/5">
@@ -130,69 +165,85 @@
 
         // Format tanggal
         const formatDate = (str) => {
-            if (!str) return '-';
-            // Handle format MM/DD/YYYY
-            const parts = str.split('/');
-            if (parts.length === 3) {
-                const [month, day, year] = parts;
-                const date = new Date(year, month - 1, day);
+            if (!str || str === '-') return '-';
+            try {
+                // Handle format MM/DD/YYYY
+                const parts = str.split('/');
+                if (parts.length === 3) {
+                    const [month, day, year] = parts;
+                    const date = new Date(year, month - 1, day);
+                    if (!isNaN(date)) {
+                        return date.toLocaleDateString('id-ID', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric'
+                        });
+                    }
+                }
+                // Fallback
+                const date = new Date(str);
                 return isNaN(date) ? str : date.toLocaleDateString('id-ID');
+            } catch {
+                return str;
             }
-            const date = new Date(str);
-            return isNaN(date) ? str : date.toLocaleDateString('id-ID');
         };
 
-        // Load data dari sheet - SAMA PERSIS DENGAN index.html Perakin
-async function loadData() {
-    try {
-        const res = await fetch(SHEET_URL);
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        const text = await res.text();
-        
-        // PARSE CSV SAMA PERSIS DENGAN index.html PERAKIN
-        const rows = text.split('\n').map(row => {
-            const matches = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-            return matches ? matches.map(m => m.replace(/"/g, '')) : row.split(',');
-        });
-
-        console.log("Parsed rows:", rows); // Debug
-
-        if (rows.length > 1) {
-            allData = rows.slice(1).map(r => ({
-                tanggal: r[0] || '-',
-                nama: r[1] || '-',
-                produk: r[2] || '-',
-                brand: r[3] || '-',
-                jumlah: r[4] || '-',
-                alamat: r[5] || '-',
-                status: r[6] || 'Pending',
-                wa: r[7] || '-',
-                catatan: r[8] || ''
-            })).filter(p => p.nama && p.nama !== '-');
-
-            console.log("Processed data:", allData); // Debug
-            renderTable();
-            updateCounters();
-        } else {
-            console.warn("Tidak ada data di sheet");
-            allData = [];
-            renderTable();
+        // Parse CSV sama dengan index.html Perakin
+        function parseCSV(text) {
+            const rows = text.split('\n').map(row => {
+                const matches = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+                return matches ? matches.map(m => m.replace(/"/g, '')) : row.split(',');
+            });
+            return rows;
         }
-    } catch (err) {
-        console.error("Gagal memuat data:", err);
-        document.getElementById('loading').innerHTML = `
-            <div class="text-center">
-                <i data-lucide="alert-circle" class="w-12 h-12 mx-auto text-red-400/50"></i>
-                <p class="text-white/40 text-sm mt-4">Failed to fetch</p>
-                <p class="text-xs text-white/20 mt-2">Cek: Console (F12) > Network > Lihat request ke sheet</p>
-                <button onclick="refreshData()" class="mt-4 px-4 py-2 bg-white/5 rounded-lg text-sm text-white/60">
-                    Coba Lagi
-                </button>
-            </div>
-        `;
-        lucide.createIcons();
-    }
-}
+
+        // Load data dari sheet
+        async function loadData() {
+            try {
+                const res = await fetch(SHEET_URL);
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                const text = await res.text();
+                
+                const rows = parseCSV(text);
+                console.log("Parsed rows:", rows);
+
+                if (rows.length > 1) {
+                    allData = rows.slice(1).map(r => ({
+                        tanggal: (r[0] || '-').trim(),
+                        nama: (r[1] || '-').trim(),
+                        produk: (r[2] || '-').trim(),
+                        brand: (r[3] || '-').trim(),
+                        jumlah: (r[4] || '-').trim(),
+                        alamat: (r[5] || '-').trim(),
+                        status: (r[6] || 'Pending').trim(),
+                        wa: (r[7] || '-').trim(),
+                        catatan: (r[8] || '').trim()
+                    })).filter(p => p.nama && p.nama !== '-');
+
+                    console.log("Processed data:", allData);
+                    renderTable();
+                    updateCounters();
+                } else {
+                    console.warn("Tidak ada data di sheet");
+                    allData = [];
+                    renderTable();
+                }
+            } catch (err) {
+                console.error("Gagal memuat data:", err);
+                document.getElementById('loading').innerHTML = `
+                    <div class="text-center">
+                        <i data-lucide="alert-circle" class="w-12 h-12 mx-auto text-red-400/50"></i>
+                        <p class="text-white/40 text-sm mt-4">Gagal memuat data</p>
+                        <p class="text-xs text-white/20 mt-2">${err.message}</p>
+                        <button onclick="refreshData()" class="mt-4 px-4 py-2 bg-white/5 rounded-lg text-sm text-white/60">
+                            Coba Lagi
+                        </button>
+                    </div>
+                `;
+                lucide.createIcons();
+            }
+        }
+
         // Render tabel
         function renderTable() {
             const body = document.getElementById('table-body');
@@ -203,43 +254,52 @@ async function loadData() {
             if (filtered.length === 0) {
                 document.getElementById('empty-state').classList.remove('hidden');
                 body.innerHTML = '';
-            } else {
-                document.getElementById('empty-state').classList.add('hidden');
-                body.innerHTML = filtered.map((item, idx) => `
-                    <tr class="hover-glow hover:bg-white/2 transition-all ${idx % 2 ? 'bg-white/1' : ''}">
-                        <td class="p-6 text-sm text-white/70">${formatDate(item.tanggal)}</td>
-                        <td class="p-6">
+                document.getElementById('loading').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('empty-state').classList.add('hidden');
+            
+            body.innerHTML = filtered.map((item, idx) => {
+                // Cari index asli di allData untuk tombol forward
+                const originalIndex = allData.findIndex(d => 
+                    d.tanggal === item.tanggal && 
+                    d.nama === item.nama &&
+                    d.produk === item.produk
+                );
+
+                return `
+                    <tr class="table-row">
+                        <td class="p-4 text-cell">${formatDate(item.tanggal)}</td>
+                        <td class="p-4">
                             <div class="font-medium text-white/90">${item.nama}</div>
-                            <div class="text-xs text-white/40 mt-1">${item.catatan || '-'}</div>
+                            ${item.catatan ? `<div class="text-muted mt-1">${item.catatan}</div>` : ''}
                         </td>
-                        <td class="p-6 text-sm text-white/70">${item.produk}</td>
-                        <td class="p-6">
-                            <span class="px-3 py-1 bg-white/5 rounded-lg text-xs text-white/60">${item.brand}</span>
+                        <td class="p-4 text-cell">${item.produk}</td>
+                        <td class="p-4">
+                            <span class="inline-block px-3 py-1 rounded-lg brand-badge text-xs">${item.brand}</span>
                         </td>
-                        <td class="p-6 text-sm font-medium text-white/80">${item.jumlah}</td>
-                        <td class="p-6 text-sm text-white/60 max-w-xs truncate">${item.alamat}</td>
-                        <td class="p-6">
+                        <td class="p-4 text-cell font-medium">${item.jumlah}</td>
+                        <td class="p-4 text-cell max-w-xs">${item.alamat}</td>
+                        <td class="p-4">
                             <span class="status-badge ${getStatusClass(item.status)}">${item.status}</span>
                         </td>
-                        <td class="p-6">
+                        <td class="p-4">
                             <a href="https://wa.me/${item.wa.replace(/[^0-9]/g, '')}" 
                                target="_blank"
-                               class="text-sm text-white/60 hover:text-white transition-colors">
+                               class="text-cell hover:text-white transition-colors underline decoration-white/20">
                                 ${item.wa}
                             </a>
                         </td>
-                        <td class="p-6">
-                            <button onclick="forwardOrder(${allData.findIndex(d => 
-                                d.tanggal === item.tanggal && 
-                                d.nama === item.nama
-                            )})" 
-                                    class="forward-btn flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-all text-sm">
+                        <td class="p-4">
+                            <button onclick="forwardOrder(${originalIndex})" 
+                                    class="forward-btn flex items-center gap-2 px-4 py-2 rounded-lg text-sm">
                                 <i data-lucide="share-2" class="w-4 h-4"></i> Forward
                             </button>
                         </td>
                     </tr>
-                `).join('');
-            }
+                `;
+            }).join('');
 
             document.getElementById('loading').style.display = 'none';
             lucide.createIcons();
@@ -265,29 +325,86 @@ async function loadData() {
             return map[status] || 'status-pending';
         }
 
-        // Forward order ke grup WA
+        // Forward order ke grup WA - dengan fallback clipboard
         function forwardOrder(index) {
-            if (index < 0 || index >= allData.length) return;
+            if (index < 0 || index >= allData.length) {
+                console.error("Index tidak valid:", index);
+                return;
+            }
             
             const item = allData[index];
             const text = `[PERAKIN] Order perlu dicek:\n• Customer: ${item.nama}\n• Produk: ${item.produk}\n• Brand: ${item.brand}\n• Status: ${item.status}\n• WA: ${item.wa}\n• Alamat: ${item.alamat}\n• Catatan: ${item.catatan || '-'}`;
             
-            navigator.clipboard.writeText(text).then(() => {
-                // Feedback visual
-                const btn = event.target.closest('button');
-                const originalHTML = btn.innerHTML;
-                btn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> Copied`;
-                btn.classList.add('bg-green-500/20');
-                
-                setTimeout(() => {
-                    btn.innerHTML = originalHTML;
-                    btn.classList.remove('bg-green-500/20');
-                    lucide.createIcons();
-                }, 1500);
-            }).catch(err => {
-                console.error("Gagal copy:", err);
-                alert("Gagal menyalin ke clipboard. Silakan copy manual.");
-            });
+            // Clipboard API dengan fallback
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showCopySuccess(event.target);
+                }).catch(err => {
+                    console.error("Clipboard API error:", err);
+                    copyWithFallback(text, event.target);
+                });
+            } else {
+                copyWithFallback(text, event.target);
+            }
+        }
+
+        function copyWithFallback(text, target) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showCopySuccess(target);
+                } else {
+                    showCopyError(target, "Silakan copy manual");
+                }
+            } catch (err) {
+                showCopyError(target, "Error: " + err.message);
+            } finally {
+                document.body.removeChild(textArea);
+            }
+        }
+
+        function showCopySuccess(button) {
+            const btn = button.closest('button');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> Copied`;
+            btn.classList.add('bg-green-500/20', 'text-green-300');
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('bg-green-500/20', 'text-green-300');
+                btn.disabled = false;
+                lucide.createIcons();
+            }, 1500);
+        }
+
+        function showCopyError(button, message) {
+            const btn = button.closest('button');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = `<i data-lucide="x" class="w-4 h-4"></i> Error`;
+            btn.classList.add('bg-red-500/20', 'text-red-300');
+            
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('bg-red-500/20', 'text-red-300');
+                lucide.createIcons();
+            }, 1500);
+            
+            // Tampilkan alert untuk manual copy
+            setTimeout(() => {
+                if (confirm(`${message}\n\nTekan OK untuk melihat teks yang perlu disalin.`)) {
+                    prompt("Copy teks berikut:", `[PERAKIN] Order perlu dicek:\nCustomer: ${button.closest('tr').querySelector('td:nth-child(2) .font-medium').textContent}\nProduk: ${button.closest('tr').querySelector('td:nth-child(3)').textContent}\nStatus: ${button.closest('tr').querySelector('.status-badge').textContent}`);
+                }
+            }, 100);
         }
 
         // Update counters
@@ -331,5 +448,3 @@ async function loadData() {
     </script>
 </body>
 </html>
-
-

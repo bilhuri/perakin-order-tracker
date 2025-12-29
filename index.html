@@ -122,7 +122,7 @@
     </footer>
 
     <script>
-        const SHEET_URL = "https://docs.google.com/spreadsheets/d/16eABXuwH0wYlyzGcCMttTyKOCzzTJwfCK_2Q2rmKEKk/gviz/tq?tqx=out:csv&sheet=Data_Buyers";
+        const SHEET_URL = "https://docs.google.com/spreadsheets/d/16eABXuwH0wYlyzGcCMttTyKOCzzTJwfCK_2Q2rmKEKk/export?format=csv&gid=0";
         let allData = [];
         let currentFilter = 'all';
         let refreshInterval;
@@ -131,6 +131,13 @@
         // Format tanggal
         const formatDate = (str) => {
             if (!str) return '-';
+            // Handle format MM/DD/YYYY
+            const parts = str.split('/');
+            if (parts.length === 3) {
+                const [month, day, year] = parts;
+                const date = new Date(year, month - 1, day);
+                return isNaN(date) ? str : date.toLocaleDateString('id-ID');
+            }
             const date = new Date(str);
             return isNaN(date) ? str : date.toLocaleDateString('id-ID');
         };
@@ -139,33 +146,75 @@
         async function loadData() {
             try {
                 const res = await fetch(SHEET_URL);
-                const csv = await res.text();
-                const rows = csv.split('\n').slice(1); // Skip header
-                
-                allData = rows.map(row => {
-                    const cols = row.split(',').map(c => c.replace(/^"|"$/g, '').trim());
-                    return {
-                        tanggal: cols[0] || '-',
-                        nama: cols[1] || '-',
-                        produk: cols[2] || '-',
-                        brand: cols[3] || '-',
-                        jumlah: cols[4] || '-',
-                        alamat: cols[5] || '-',
-                        status: cols[6] || 'Pending',
-                        wa: cols[7] || '-',
-                        catatan: cols[8] || ''
-                    };
-                }).filter(r => r.tanggal && r.nama);
+                const csvText = await res.text();
+                console.log("Raw response (first 500 chars):", csvText.substring(0, 500));
 
+                // Bersihkan dan parse CSV/TSV
+                const rows = csvText.split('\n').filter(row => row.trim() !== '');
+                
+                if (rows.length < 2) {
+                    console.warn("CSV hanya header atau kosong");
+                    allData = [];
+                    renderTable();
+                    return;
+                }
+
+                // Deteksi separator (koma atau tab)
+                const firstRow = rows[0];
+                const hasTabs = firstRow.includes('\t');
+                const separator = hasTabs ? '\t' : ',';
+                
+                // Parse header
+                const headers = firstRow.split(separator).map(h => h.trim().replace(/^"|"$/g, ''));
+                console.log("Headers detected:", headers);
+
+                // Parse data rows
+                allData = [];
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    const cols = row.split(separator).map(c => c.trim().replace(/^"|"$/g, ''));
+                    
+                    // Map ke objek berdasarkan header
+                    const obj = {};
+                    headers.forEach((header, idx) => {
+                        obj[header] = cols[idx] || '';
+                    });
+
+                    // Normalisasi nama field
+                    const order = {
+                        tanggal: obj.Tanggal || obj.tanggal || '-',
+                        nama: obj['Nama Customer'] || obj['nama customer'] || obj.Nama || obj.nama || '-',
+                        produk: obj.Produk || obj.produk || '-',
+                        brand: obj.Brand || obj.brand || '-',
+                        jumlah: obj.Jumlah || obj.jumlah || '-',
+                        alamat: obj.Alamat || obj.alamat || '-',
+                        status: obj.Status || obj.status || 'Pending',
+                        wa: obj['WA Customer'] || obj['wa customer'] || obj.WA || obj.wa || '-',
+                        catatan: obj.Catatan || obj.catatan || ''
+                    };
+
+                    // Validasi data minimal
+                    if (order.nama && order.nama !== '-' && order.tanggal && order.tanggal !== '-') {
+                        allData.push(order);
+                    }
+                }
+
+                console.log("Parsed data:", allData);
                 renderTable();
                 updateCounters();
             } catch (err) {
                 console.error("Gagal memuat data:", err);
-                document.getElementById('table-body').innerHTML = `
-                    <tr><td colspan="9" class="p-8 text-center text-white/40">
-                        Gagal memuat data. Pastikan sheet publik dan format benar.
-                    </td></tr>
+                document.getElementById('loading').innerHTML = `
+                    <div class="text-center">
+                        <i data-lucide="alert-circle" class="w-12 h-12 mx-auto text-red-400/50"></i>
+                        <p class="text-white/40 text-sm mt-4">Gagal memuat data</p>
+                        <p class="text-xs text-white/20 mt-2">${err.message}</p>
+                        <button onclick="refreshData()" class="mt-4 px-4 py-2 bg-white/5 rounded-lg text-sm text-white/60">
+                            Coba Lagi
+                        </button>
+                    </div>
                 `;
+                lucide.createIcons();
             }
         }
 
@@ -205,7 +254,10 @@
                             </a>
                         </td>
                         <td class="p-6">
-                            <button onclick="forwardOrder(${idx})" 
+                            <button onclick="forwardOrder(${allData.findIndex(d => 
+                                d.tanggal === item.tanggal && 
+                                d.nama === item.nama
+                            )})" 
                                     class="forward-btn flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-all text-sm">
                                 <i data-lucide="share-2" class="w-4 h-4"></i> Forward
                             </button>
@@ -240,19 +292,26 @@
 
         // Forward order ke grup WA
         function forwardOrder(index) {
+            if (index < 0 || index >= allData.length) return;
+            
             const item = allData[index];
-            const text = `[PERAKIN] Order perlu dicek:\n- Customer: ${item.nama}\n- Produk: ${item.produk}\n- Brand: ${item.brand}\n- Status: ${item.status}\n- WA: ${item.wa}\n- Alamat: ${item.alamat}\n- Catatan: ${item.catatan || '-'}`;
+            const text = `[PERAKIN] Order perlu dicek:\n• Customer: ${item.nama}\n• Produk: ${item.produk}\n• Brand: ${item.brand}\n• Status: ${item.status}\n• WA: ${item.wa}\n• Alamat: ${item.alamat}\n• Catatan: ${item.catatan || '-'}`;
             
             navigator.clipboard.writeText(text).then(() => {
                 // Feedback visual
                 const btn = event.target.closest('button');
+                const originalHTML = btn.innerHTML;
                 btn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> Copied`;
                 btn.classList.add('bg-green-500/20');
+                
                 setTimeout(() => {
-                    btn.innerHTML = `<i data-lucide="share-2" class="w-4 h-4"></i> Forward`;
+                    btn.innerHTML = originalHTML;
                     btn.classList.remove('bg-green-500/20');
                     lucide.createIcons();
                 }, 1500);
+            }).catch(err => {
+                console.error("Gagal copy:", err);
+                alert("Gagal menyalin ke clipboard. Silakan copy manual.");
             });
         }
 
@@ -261,13 +320,15 @@
             document.getElementById('total-orders').textContent = allData.length;
             document.getElementById('update-time').textContent = new Date().toLocaleTimeString('id-ID', { 
                 hour: '2-digit', 
-                minute: '2-digit' 
+                minute: '2-digit',
+                second: '2-digit'
             });
         }
 
         // Refresh data
         function refreshData() {
             document.getElementById('loading').style.display = 'block';
+            document.getElementById('empty-state').classList.add('hidden');
             loadData();
             countdown = 30;
         }
@@ -275,6 +336,8 @@
         // Auto-refresh countdown
         function startCountdown() {
             const el = document.getElementById('countdown');
+            if (refreshInterval) clearInterval(refreshInterval);
+            
             refreshInterval = setInterval(() => {
                 countdown--;
                 el.textContent = countdown;

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PERAKIN ORDER TRACKER</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <style>
+        :root {
+            --pending: #fbbf24;
+            --ordered: #3b82f6;
+            --terkirim: #34d399;
+            --selesai: #10b981;
+            --problem: #ef4444;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0a0a;
+            color: #f0f0f0;
+        }
+        .status-badge {
+            @apply px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider;
+        }
+        .status-pending { background-color: var(--pending); color: #000; }
+        .status-ordered { background-color: var(--ordered); color: white; }
+        .status-terkirim { background-color: var(--terkirim); color: #000; }
+        .status-selesai { background-color: var(--selesai); color: white; }
+        .status-problem { background-color: var(--problem); color: white; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .hover-glow:hover {
+            box-shadow: 0 0 20px rgba(192, 192, 192, 0.1);
+        }
+        .silver-gradient {
+            background: linear-gradient(135deg, #ffffff 0%, #c0c0c0 50%, #8e8e8e 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <!-- HEADER -->
+    <header class="mb-10">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div>
+                <h1 class="text-4xl md:text-5xl font-bold silver-gradient tracking-tight">PERAKIN ORDER TRACKER</h1>
+                <p class="text-white/40 text-sm mt-2">Live monitoring order • <span id="update-time"></span></p>
+                <p class="text-white/30 text-xs mt-1">Monitor: <span class="text-white/60">Ahmad Zaman Huri</span></p>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="glass-card px-4 py-3 rounded-xl">
+                    <div class="text-white/40 text-xs uppercase tracking-widest">Total Order</div>
+                    <div id="total-orders" class="text-2xl font-bold silver-gradient">0</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- FILTER & CONTROLS -->
+    <div class="glass-card rounded-2xl p-6 mb-8">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="flex flex-wrap gap-2">
+                <button onclick="filterStatus('all')" class="filter-btn active px-4 py-2 rounded-lg bg-white/10 text-white text-sm font-medium">Semua</button>
+                <button onclick="filterStatus('Pending')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium border border-yellow-500/30 text-yellow-300">Pending</button>
+                <button onclick="filterStatus('Ordered')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium border border-blue-500/30 text-blue-300">Ordered</button>
+                <button onclick="filterStatus('Terkirim')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium border border-green-400/30 text-green-300">Terkirim</button>
+                <button onclick="filterStatus('Selesai')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium border border-green-600/30 text-green-400">Selesai</button>
+                <button onclick="filterStatus('Problem')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium border border-red-500/30 text-red-300">Problem</button>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="refreshData()" class="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-white/70 transition-all">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i> Refresh
+                </button>
+                <div class="text-xs text-white/30">Auto-refresh: <span id="countdown">30</span>s</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="glass-card rounded-2xl overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-white/5">
+                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">Tanggal</th>
+                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">Customer</th>
+                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">Produk</th>
+                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">Brand</th>
+                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">Jumlah</th>
+                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">Alamat</th>
+                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">Status</th>
+                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">WA</th>
+                        <th class="text-left p-6 text-white/40 text-xs uppercase tracking-widest font-medium">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body" class="divide-y divide-white/5">
+                    <!-- Data akan dimuat di sini -->
+                </tbody>
+            </table>
+        </div>
+        <div id="loading" class="p-12 text-center">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-white/40"></div>
+            <p class="text-white/40 text-sm mt-4">Memuat data dari sheet...</p>
+        </div>
+        <div id="empty-state" class="hidden p-12 text-center">
+            <i data-lucide="inbox" class="w-12 h-12 mx-auto text-white/10"></i>
+            <p class="text-white/30 mt-4">Tidak ada data order</p>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="mt-12 text-center text-white/20 text-xs">
+        <p>© 2024 PERAKIN • Internal Tool v1.0 • <span id="sheet-info">Sheet: Data_Buyers</span></p>
+        <p class="mt-1">Refresh otomatis setiap 30 detik • Hanya view • Tidak simpan data</p>
+    </footer>
+
+    <script>
+        const SHEET_URL = "https://docs.google.com/spreadsheets/d/16eABXuwH0wYlyzGcCMttTyKOCzzTJwfCK_2Q2rmKEKk/gviz/tq?tqx=out:csv&sheet=Data_Buyers";
+        let allData = [];
+        let currentFilter = 'all';
+        let refreshInterval;
+        let countdown = 30;
+
+        // Format tanggal
+        const formatDate = (str) => {
+            if (!str) return '-';
+            const date = new Date(str);
+            return isNaN(date) ? str : date.toLocaleDateString('id-ID');
+        };
+
+        // Load data dari sheet
+        async function loadData() {
+            try {
+                const res = await fetch(SHEET_URL);
+                const csv = await res.text();
+                const rows = csv.split('\n').slice(1); // Skip header
+                
+                allData = rows.map(row => {
+                    const cols = row.split(',').map(c => c.replace(/^"|"$/g, '').trim());
+                    return {
+                        tanggal: cols[0] || '-',
+                        nama: cols[1] || '-',
+                        produk: cols[2] || '-',
+                        brand: cols[3] || '-',
+                        jumlah: cols[4] || '-',
+                        alamat: cols[5] || '-',
+                        status: cols[6] || 'Pending',
+                        wa: cols[7] || '-',
+                        catatan: cols[8] || ''
+                    };
+                }).filter(r => r.tanggal && r.nama);
+
+                renderTable();
+                updateCounters();
+            } catch (err) {
+                console.error("Gagal memuat data:", err);
+                document.getElementById('table-body').innerHTML = `
+                    <tr><td colspan="9" class="p-8 text-center text-white/40">
+                        Gagal memuat data. Pastikan sheet publik dan format benar.
+                    </td></tr>
+                `;
+            }
+        }
+
+        // Render tabel
+        function renderTable() {
+            const body = document.getElementById('table-body');
+            const filtered = currentFilter === 'all' 
+                ? allData 
+                : allData.filter(item => item.status === currentFilter);
+
+            if (filtered.length === 0) {
+                document.getElementById('empty-state').classList.remove('hidden');
+                body.innerHTML = '';
+            } else {
+                document.getElementById('empty-state').classList.add('hidden');
+                body.innerHTML = filtered.map((item, idx) => `
+                    <tr class="hover-glow hover:bg-white/2 transition-all ${idx % 2 ? 'bg-white/1' : ''}">
+                        <td class="p-6 text-sm text-white/70">${formatDate(item.tanggal)}</td>
+                        <td class="p-6">
+                            <div class="font-medium text-white/90">${item.nama}</div>
+                            <div class="text-xs text-white/40 mt-1">${item.catatan || '-'}</div>
+                        </td>
+                        <td class="p-6 text-sm text-white/70">${item.produk}</td>
+                        <td class="p-6">
+                            <span class="px-3 py-1 bg-white/5 rounded-lg text-xs text-white/60">${item.brand}</span>
+                        </td>
+                        <td class="p-6 text-sm font-medium text-white/80">${item.jumlah}</td>
+                        <td class="p-6 text-sm text-white/60 max-w-xs truncate">${item.alamat}</td>
+                        <td class="p-6">
+                            <span class="status-badge ${getStatusClass(item.status)}">${item.status}</span>
+                        </td>
+                        <td class="p-6">
+                            <a href="https://wa.me/${item.wa.replace(/[^0-9]/g, '')}" 
+                               target="_blank"
+                               class="text-sm text-white/60 hover:text-white transition-colors">
+                                ${item.wa}
+                            </a>
+                        </td>
+                        <td class="p-6">
+                            <button onclick="forwardOrder(${idx})" 
+                                    class="forward-btn flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-all text-sm">
+                                <i data-lucide="share-2" class="w-4 h-4"></i> Forward
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            document.getElementById('loading').style.display = 'none';
+            lucide.createIcons();
+        }
+
+        // Tombol filter
+        function filterStatus(status) {
+            currentFilter = status;
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            renderTable();
+        }
+
+        // Class warna status
+        function getStatusClass(status) {
+            const map = {
+                'Pending': 'status-pending',
+                'Ordered': 'status-ordered',
+                'Terkirim': 'status-terkirim',
+                'Selesai': 'status-selesai',
+                'Problem': 'status-problem'
+            };
+            return map[status] || 'status-pending';
+        }
+
+        // Forward order ke grup WA
+        function forwardOrder(index) {
+            const item = allData[index];
+            const text = `[PERAKIN] Order perlu dicek:\n- Customer: ${item.nama}\n- Produk: ${item.produk}\n- Brand: ${item.brand}\n- Status: ${item.status}\n- WA: ${item.wa}\n- Alamat: ${item.alamat}\n- Catatan: ${item.catatan || '-'}`;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                // Feedback visual
+                const btn = event.target.closest('button');
+                btn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> Copied`;
+                btn.classList.add('bg-green-500/20');
+                setTimeout(() => {
+                    btn.innerHTML = `<i data-lucide="share-2" class="w-4 h-4"></i> Forward`;
+                    btn.classList.remove('bg-green-500/20');
+                    lucide.createIcons();
+                }, 1500);
+            });
+        }
+
+        // Update counters
+        function updateCounters() {
+            document.getElementById('total-orders').textContent = allData.length;
+            document.getElementById('update-time').textContent = new Date().toLocaleTimeString('id-ID', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+        }
+
+        // Refresh data
+        function refreshData() {
+            document.getElementById('loading').style.display = 'block';
+            loadData();
+            countdown = 30;
+        }
+
+        // Auto-refresh countdown
+        function startCountdown() {
+            const el = document.getElementById('countdown');
+            refreshInterval = setInterval(() => {
+                countdown--;
+                el.textContent = countdown;
+                if (countdown <= 0) {
+                    refreshData();
+                }
+            }, 1000);
+        }
+
+        // Inisialisasi
+        window.onload = () => {
+            lucide.createIcons();
+            loadData();
+            startCountdown();
+        };
+    </script>
+</body>
+</html>

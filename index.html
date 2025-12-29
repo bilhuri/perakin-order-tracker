@@ -142,82 +142,57 @@
             return isNaN(date) ? str : date.toLocaleDateString('id-ID');
         };
 
-        // Load data dari sheet
-        async function loadData() {
-            try {
-                const res = await fetch(SHEET_URL);
-                const csvText = await res.text();
-                console.log("Raw response (first 500 chars):", csvText.substring(0, 500));
+        // Load data dari sheet - SAMA PERSIS DENGAN index.html Perakin
+async function loadData() {
+    try {
+        const res = await fetch(SHEET_URL);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const text = await res.text();
+        
+        // PARSE CSV SAMA PERSIS DENGAN index.html PERAKIN
+        const rows = text.split('\n').map(row => {
+            const matches = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+            return matches ? matches.map(m => m.replace(/"/g, '')) : row.split(',');
+        });
 
-                // Bersihkan dan parse CSV/TSV
-                const rows = csvText.split('\n').filter(row => row.trim() !== '');
-                
-                if (rows.length < 2) {
-                    console.warn("CSV hanya header atau kosong");
-                    allData = [];
-                    renderTable();
-                    return;
-                }
+        console.log("Parsed rows:", rows); // Debug
 
-                // Deteksi separator (koma atau tab)
-                const firstRow = rows[0];
-                const hasTabs = firstRow.includes('\t');
-                const separator = hasTabs ? '\t' : ',';
-                
-                // Parse header
-                const headers = firstRow.split(separator).map(h => h.trim().replace(/^"|"$/g, ''));
-                console.log("Headers detected:", headers);
+        if (rows.length > 1) {
+            allData = rows.slice(1).map(r => ({
+                tanggal: r[0] || '-',
+                nama: r[1] || '-',
+                produk: r[2] || '-',
+                brand: r[3] || '-',
+                jumlah: r[4] || '-',
+                alamat: r[5] || '-',
+                status: r[6] || 'Pending',
+                wa: r[7] || '-',
+                catatan: r[8] || ''
+            })).filter(p => p.nama && p.nama !== '-');
 
-                // Parse data rows
-                allData = [];
-                for (let i = 1; i < rows.length; i++) {
-                    const row = rows[i];
-                    const cols = row.split(separator).map(c => c.trim().replace(/^"|"$/g, ''));
-                    
-                    // Map ke objek berdasarkan header
-                    const obj = {};
-                    headers.forEach((header, idx) => {
-                        obj[header] = cols[idx] || '';
-                    });
-
-                    // Normalisasi nama field
-                    const order = {
-                        tanggal: obj.Tanggal || obj.tanggal || '-',
-                        nama: obj['Nama Customer'] || obj['nama customer'] || obj.Nama || obj.nama || '-',
-                        produk: obj.Produk || obj.produk || '-',
-                        brand: obj.Brand || obj.brand || '-',
-                        jumlah: obj.Jumlah || obj.jumlah || '-',
-                        alamat: obj.Alamat || obj.alamat || '-',
-                        status: obj.Status || obj.status || 'Pending',
-                        wa: obj['WA Customer'] || obj['wa customer'] || obj.WA || obj.wa || '-',
-                        catatan: obj.Catatan || obj.catatan || ''
-                    };
-
-                    // Validasi data minimal
-                    if (order.nama && order.nama !== '-' && order.tanggal && order.tanggal !== '-') {
-                        allData.push(order);
-                    }
-                }
-
-                console.log("Parsed data:", allData);
-                renderTable();
-                updateCounters();
-            } catch (err) {
-                console.error("Gagal memuat data:", err);
-                document.getElementById('loading').innerHTML = `
-                    <div class="text-center">
-                        <i data-lucide="alert-circle" class="w-12 h-12 mx-auto text-red-400/50"></i>
-                        <p class="text-white/40 text-sm mt-4">Gagal memuat data</p>
-                        <p class="text-xs text-white/20 mt-2">${err.message}</p>
-                        <button onclick="refreshData()" class="mt-4 px-4 py-2 bg-white/5 rounded-lg text-sm text-white/60">
-                            Coba Lagi
-                        </button>
-                    </div>
-                `;
-                lucide.createIcons();
-            }
+            console.log("Processed data:", allData); // Debug
+            renderTable();
+            updateCounters();
+        } else {
+            console.warn("Tidak ada data di sheet");
+            allData = [];
+            renderTable();
         }
-
+    } catch (err) {
+        console.error("Gagal memuat data:", err);
+        document.getElementById('loading').innerHTML = `
+            <div class="text-center">
+                <i data-lucide="alert-circle" class="w-12 h-12 mx-auto text-red-400/50"></i>
+                <p class="text-white/40 text-sm mt-4">Failed to fetch</p>
+                <p class="text-xs text-white/20 mt-2">Cek: Console (F12) > Network > Lihat request ke sheet</p>
+                <button onclick="refreshData()" class="mt-4 px-4 py-2 bg-white/5 rounded-lg text-sm text-white/60">
+                    Coba Lagi
+                </button>
+            </div>
+        `;
+        lucide.createIcons();
+    }
+}
         // Render tabel
         function renderTable() {
             const body = document.getElementById('table-body');
@@ -356,4 +331,5 @@
     </script>
 </body>
 </html>
+
 
